@@ -87,7 +87,7 @@ parsing outputs into a single `StructureNode` representation that can be consume
   Demonstrates how the adapters plug into the OAIS model and produce executable structure information
   for a concrete example format.
 
-## Build and run
+## Quick start
 
 Prerequisites:
 
@@ -106,6 +106,15 @@ To run the demo:
 mvn -pl oais-structure-demo exec:java
 ```
 
+## Project status
+
+This repository is a clean Maven reactor intended to be built from the project root.
+The current workspace build was verified successfully with:
+
+```bash
+mvn test -q
+```
+
 ## Notes on external dependencies
 
 This project intentionally keeps the abstraction layer independent from engine-specific APIs.
@@ -119,11 +128,23 @@ The DRB module is designed to avoid a hard compile-time dependency on DRB jars b
 those artifacts are not published to Maven Central; it resolves the engine by reflection
 at runtime.
 
-## Project status
+## Contributing
 
-The repository is organized as a clean Maven reactor and is intended to be built from the
-root project only. The build has been verified successfully in the current workspace with
-`mvn test -q`.
+Contributions are welcome. Please keep changes focused, add tests for behavior changes,
+and update the documentation when public interfaces or module structure change.
+
+A typical workflow is:
+
+```bash
+git checkout -b feature/my-change
+mvn test
+```
+
+## License
+
+This project is intended for open-source use, but the exact license should be confirmed before
+publishing externally. Add the appropriate SPDX license file and header if this repository is to
+be distributed publicly.
 
 ## Extending the project
 
@@ -135,3 +156,13 @@ A new parser backend can be added by creating a module that:
 4. registers a `StructureInterpreterProvider` via the Java `ServiceLoader` mechanism
 
 This keeps the common OAIS-facing code stable even as new binary parsers are added.
+
+## Release checklist
+
+Before publishing or sharing the repository externally:
+
+- confirm the license is correct and included in the repo
+- verify Java and Maven requirements are documented clearly
+- confirm external engine dependencies are noted for each adapter
+- review any proprietary or non-public DRB integration notes
+- run the full reactor build from the project root
