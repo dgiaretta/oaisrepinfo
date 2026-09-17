@@ -40,6 +40,53 @@ root/
 └─ oais-structure-demo/
 ```
 
+## Architecture at a glance
+
+```mermaid
+flowchart LR
+    A[OAIS Information Package / Core Model] --> B[oaiscore]
+    B --> C[oais-structure-api]
+    C --> D[oais-structure-dfdl]
+    C --> E[oais-structure-kaitai]
+    C --> F[oais-structure-drb]
+    D --> G[StructureNode]
+    E --> G
+    F --> G
+    G --> H[Higher-level processing / demo]
+
+    C --> I[ExecutableStructureRepInfo]
+    I --> J[Format-specific parser execution]
+```
+
+At a high level, the core OAIS model stays generic, while adapter modules map engine-specific
+parsing outputs into a single `StructureNode` representation that can be consumed uniformly.
+
+## Module-by-module overview
+
+- `oaiscore`  
+  Vendored OAIS core model classes, including the `RepresentationInformation` and related types
+  that the adapter layer builds on.
+
+- `oais-structure-api`  
+  Contains the engine-agnostic abstractions such as `StructureNode`, `ExecutableStructureRepInfo`,
+  and the `StructureInterpreterProvider` SPI. This is the layer that downstream code should depend on.
+
+- `oais-structure-dfdl`  
+  Bridges Apache Daffodil into the OAIS structure model. It executes a DFDL schema and converts the
+  parsed result into the common `StructureNode` tree.
+
+- `oais-structure-kaitai`  
+  Bridges Kaitai Struct-generated parsers by reflection. It works against generated Java classes by
+  reading their getters and runtime metadata to reconstruct a structure tree.
+
+- `oais-structure-drb`  
+  Bridges DRB through reflection so the module does not require a compile-time DRB dependency. This
+  makes it usable in environments where the proprietary library is not available on Maven Central.
+
+- `oais-structure-demo`  
+  Demonstrates how the adapters plug into the OAIS model and produce executable structure information
+  for a concrete example format.
+
 ## Build and run
 
 Prerequisites:
