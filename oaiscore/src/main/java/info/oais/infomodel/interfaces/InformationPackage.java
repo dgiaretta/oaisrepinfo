@@ -38,9 +38,9 @@ public interface InformationPackage extends DataObject {
 	public PreservationDescriptionInformation getPDI();
 
 	/**
-	 * Set the InformationObject in the InformationPackage.
+	 * Set the PreservationDescriptionInformation in the InformationPackage.
 	 *
-	 * @param infoObj The InformationObject for the InformationPackage.
+	 * @param pdiObj The PreservationDescriptionInformation for the InformationPackage.
 	 */
 	public void setPDI(PreservationDescriptionInformation pdiObj);
 	/**
@@ -71,12 +71,6 @@ public interface InformationPackage extends DataObject {
 	 */
 	public void setPackagingInformation(PackagingInformation pi);
 
-	/**
-	 * Get the IdentifierObject of the Information Package
-	 *
-	 * @return IdentifierObject for the Info Package
-	 */
-	
 	/**
 	 * Return the PackageType associated with the InformationPackage
 	 * "AIP","General","InfoObjectRequest","Query","QueryResponse","ObjectRequestResponse","ErrorResponse"

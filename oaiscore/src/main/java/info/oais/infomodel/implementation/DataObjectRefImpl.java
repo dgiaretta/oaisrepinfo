@@ -108,9 +108,6 @@ public class DataObjectRefImpl implements DataObject {
 	 * Get the IdentifierObject of this DataObject.
 	 *
 	 * @return IdentifierObject of this DataObject.
-	 *
-	 * @author david
-	 *
 	 */
 	@JsonGetter("IdentifierObject")
 	public IdentifierObject getIdentifierObject() {
@@ -120,9 +117,6 @@ public class DataObjectRefImpl implements DataObject {
 	 * Set the IdentifierObject of this DataObject.
 	 *
 	 * @param id IdentifierObject of this DataObject.
-	 *
-	 * @author david
-	 *
 	 */
 	@JsonSetter("IdentifierObject")
 	public void setIdentifierObject(IdentifierObject id) {

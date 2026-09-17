@@ -10,10 +10,6 @@ import com.fasterxml.jackson.annotation.JsonSetter;
 
 import info.oais.infomodel.interfaces.IdentifierObject;
 
-/**
- * @author david
- *
- */
 //DG XXXX
 //@JsonIgnoreType
 @JsonPropertyOrder({"IdentifierString", "IdentifierType" } )
