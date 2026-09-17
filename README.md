@@ -128,6 +128,37 @@ The DRB module is designed to avoid a hard compile-time dependency on DRB jars b
 those artifacts are not published to Maven Central; it resolves the engine by reflection
 at runtime.
 
+## DFDL example description
+
+The DFDL adapter is meant to take a DFDL schema and apply it to an actual binary payload. In a
+normal usage pattern, the format is described by a schema such as `point.dfdl.xsd`, the byte stream
+is loaded from a resource or file, and the Daffodil processor produces an infoset that is then mapped
+into the common `StructureNode` tree.
+
+A typical DFDL-backed example is:
+
+1. a DFDL schema resource describing the binary layout,
+2. a `DfdlFormatSpecification` pointing to that schema,
+3. a `DigitalObject` containing the target byte stream,
+4. a `StructureInterpreterProvider` that runs the Daffodil processor and normalizes the result into
+   a `StructureNode`.
+
+## Kaitai example description
+
+The Kaitai adapter is designed around generated parser classes produced from `.ksy` descriptions.
+In the demo, the format is modeled in [oais-structure-kaitai/src/main/ksy/point2d.ksy](oais-structure-kaitai/src/main/ksy/point2d.ksy),
+then consumed by a generated Java parser class that exposes a structured object model. The adapter
+reflects over that generated class and turns the resulting values into the same `StructureNode` shape
+used elsewhere in the project.
+
+A typical Kaitai-backed example is:
+
+1. a `.ksy` format definition,
+2. a generated Java parser class built from that definition,
+3. a `KaitaiFormatSpecification` pointing at the generated class,
+4. a `DigitalObject` containing the target byte stream,
+5. a `StructureInterpreterProvider` that reflects the parser output into a `StructureNode` tree.
+
 ## DRB example description
 
 The DRB adapter is intended to wrap a DRB factory/resolver and expose its parsed tree through
