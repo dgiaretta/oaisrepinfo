@@ -48,6 +48,7 @@ import info.oais.infomodel.structure.semantic.ImageSemanticRepInfo;
 import info.oais.infomodel.structure.semantic.ImageViewSpecification;
 import info.oais.infomodel.structure.semantic.OaisIfImagePixelTableModel;
 import info.oais.infomodel.structure.semantic.OaisIfTableModel;
+import info.oais.infomodel.structure.semantic.TableCombiner;
 import info.oais.infomodel.structure.semantic.TableModelCsv;
 import info.oais.infomodel.structure.semantic.TableSemanticRepInfo;
 import info.oais.infomodel.structure.semantic.TableViewSpecification;
@@ -55,6 +56,7 @@ import info.oais.infomodel.structure.semantic.TimeSeriesSemanticRepInfo;
 import info.oais.infomodel.structure.semantic.TimeSeriesViewSpecification;
 import info.oais.infomodel.structure.semantic.VectorSemanticRepInfo;
 import info.oais.infomodel.structure.semantic.VectorViewSpecification;
+import info.oais.infomodel.structure.semantic.XyScatterPanel;
 
 /**
  * Decodes the same little binary "point" record two different ways - once
@@ -68,7 +70,12 @@ import info.oais.infomodel.structure.semantic.VectorViewSpecification;
  * {@link #buildVectorTree()} and {@link #buildImageTree()} below - over
  * small, hand-built {@link StructureNode} trees rather than anything decoded
  * from the "point" bytes, to keep this addition independent of the binary
- * format work above it.
+ * format work above it. Also shows two different data files (
+ * {@code point.bin} and {@code point-alt.bin}) - each with its own RepInfo
+ * applying the same {@link TableSemanticRepInfo}, producing two
+ * {@code OaisIfTable}s - combined with {@link TableCombiner} and plotted
+ * against each other with {@link XyScatterPanel}; see
+ * {@link #showCombinedFiles(OaisIfTable, OaisIfTable)}.
  *
  * <p>Run with {@code mvn -pl oais-structure-demo exec:java} from the project
  * root once Daffodil and the Kaitai Struct runtime are resolvable (see the
@@ -125,7 +132,7 @@ public final class DemoMain {
 	}
 
 	public static void main(String[] args) throws Exception {
-		byte[] bytes = pointBytes(42, -7, "hi");
+		byte[] bytes = readResourceBytes("/point.bin");
 
 		System.out.println("=== Engine discovery via StructureInterpreterFactory ===");
 		StructureInterpreterFactory factory = new StructureInterpreterFactory();
@@ -147,6 +154,18 @@ public final class DemoMain {
 		printAsTable("DFDL (Apache Daffodil)", dfdlTable);
 
 		showAsJTables(kaitaiTable, dfdlTable);
+
+		System.out.println("=== Combining two different data files (point.bin and point-alt.bin), "
+				+ "both viewed through the same TableSemanticRepInfo ===");
+		byte[] altBytes = readResourceBytes("/point-alt.bin");
+		StructureNode altTree = decodeAndPrint(altBytes, new KaitaiFormatSpecification(Point2d.class));
+		OaisIfTable altTable = POINT_AS_TABLE.apply(altTree);
+		OaisIfTable joined = TableCombiner.join(kaitaiTable, "point", altTable, "point-alt");
+		OaisIfTable unioned = TableCombiner.union(kaitaiTable, "point.bin", altTable, "point-alt.bin");
+		printAsTable("Row-aligned join (point.bin's and point-alt.bin's columns side by side)", joined);
+		printAsTable("Union (both files' rows stacked, tagged by source)", unioned);
+
+		showCombinedFiles(joined, unioned);
 
 		System.out.println("=== TimeSeries / Vector / Image semantic views (hand-built StructureNode trees, "
 				+ "described externally by timeseries-view.xml / vector-view.xml / image-view.xml) ===");
@@ -179,6 +198,46 @@ public final class DemoMain {
 			frame.setLocationRelativeTo(null);
 			frame.setVisible(true);
 		});
+	}
+
+	/**
+	 * Opens a window showing the two ways {@link TableCombiner} combines
+	 * {@code point.bin}'s and {@code point-alt.bin}'s tables: the
+	 * {@code joined} table (both files' columns side by side, one row) and
+	 * the {@code unioned} table (both files' rows stacked, tagged by
+	 * source), plus an {@link XyScatterPanel} plotting {@code point.x}
+	 * against {@code point-alt.x} straight out of the joined table - the
+	 * "columns from two tables plotted against each other" case, made
+	 * possible by the join giving both columns a shared row to be plotted
+	 * from.
+	 */
+	private static void showCombinedFiles(OaisIfTable joined, OaisIfTable unioned) {
+		SwingUtilities.invokeLater(() -> {
+			JFrame frame = new JFrame("Combining point.bin and point-alt.bin (TableCombiner)");
+			frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+			frame.setLayout(new GridLayout(3, 1, 0, 8));
+			frame.add(labeledTable("Row-aligned join", joined));
+			frame.add(labeledTable("Union (with source column)", unioned));
+
+			JPanel scatterPanel = new JPanel(new BorderLayout());
+			scatterPanel.setBorder(BorderFactory.createTitledBorder("point.x vs. point-alt.x (from the joined table)"));
+			scatterPanel.add(new XyScatterPanel(joined, findColumn(joined, "point.x"), findColumn(joined, "point-alt.x")),
+					BorderLayout.CENTER);
+			frame.add(scatterPanel);
+
+			frame.setSize(480, 560);
+			frame.setLocationRelativeTo(null);
+			frame.setVisible(true);
+		});
+	}
+
+	private static int findColumn(OaisIfTable table, String columnName) {
+		for (int c = 0; c < table.getColumnCount(); c++) {
+			if (table.getColumnName(c).equals(columnName)) {
+				return c;
+			}
+		}
+		throw new IllegalArgumentException("No column named \"" + columnName + "\" in this table");
 	}
 
 	/**
@@ -422,15 +481,18 @@ public final class DemoMain {
 		return tree;
 	}
 
-	private static byte[] pointBytes(int x, int y, String label) throws Exception {
-		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-		try (DataOutputStream out = new DataOutputStream(bytes)) {
-			out.writeInt(x);
-			out.writeInt(y);
-			byte[] labelBytes = label.getBytes(StandardCharsets.US_ASCII);
-			out.writeByte(labelBytes.length);
-			out.write(labelBytes);
+	private static byte[] readResourceBytes(String resourcePath) throws IOException {
+		try (java.io.InputStream in = DemoMain.class.getResourceAsStream(resourcePath)) {
+			if (in == null) {
+				throw new IOException("Resource not found: " + resourcePath);
+			}
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			byte[] buffer = new byte[4096];
+			int read;
+			while ((read = in.read(buffer)) != -1) {
+				out.write(buffer, 0, read);
+			}
+			return out.toByteArray();
 		}
-		return bytes.toByteArray();
 	}
 }

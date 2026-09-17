@@ -178,6 +178,28 @@ The important point is that downstream application code does not need to know wh
 of structure information came from DRB, Kaitai, or DFDL. All three are normalized to the same tree
 shape before semantic interpretation is applied.
 
+## Combining two data files
+
+The demo also shows getting two different data files - `point.bin` and `point-alt.bin` - each
+decoded and given the same `TableSemanticRepInfo` (its RepInfo), producing two `OaisIfTable`s, then
+combined with `TableCombiner` (in `oais-structure-api`):
+
+- `TableCombiner.join` pairs the two tables' rows up positionally into one wider table, with both
+  files' columns side by side - this is what lets a column from one file be plotted or compared
+  against a column from the other, since both values then live in the same row.
+- `TableCombiner.union` stacks the two tables' rows into one taller table with a `source` column
+  recording which file each row came from.
+
+`XyScatterPanel` (also in `oais-structure-api`) plots two numeric columns of a joined table against
+each other as a simple XY scatter chart, with no third-party charting dependency.
+
+Other ways to combine two datasets, not implemented here but natural extensions of the same
+`OaisIfTable`-in, `OaisIfTable`-out shape: a key-based join (pairing rows by a shared identifier
+column instead of by position, for datasets that do not line up row for row); derived/computed
+columns over a joined table (e.g. a difference column, for comparing two versions of the same
+records); and summary statistics (row counts, min/max/mean, correlation) computed across a joined
+or unioned table.
+
 ## Contributing
 
 Contributions are welcome. Please keep changes focused, add tests for behavior changes,
