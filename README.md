@@ -128,6 +128,25 @@ The DRB module is designed to avoid a hard compile-time dependency on DRB jars b
 those artifacts are not published to Maven Central; it resolves the engine by reflection
 at runtime.
 
+## DRB example description
+
+The DRB adapter is intended to wrap a DRB factory/resolver and expose its parsed tree through
+the same `StructureNode` API used by the DFDL and Kaitai adapters. In practical terms, a DRB
+example is a format definition that a DRB resolver can parse into a node tree with fields such as
+name, value, children, and attributes.
+
+A typical DRB-backed example is:
+
+1. a DRB format descriptor or resolver class supplied by the local environment,
+2. a `DrbFormatSpecification` pointing at that resolver,
+3. a `DigitalObject` containing the target byte stream,
+4. a `StructureInterpreterProvider` that resolves the DRB instance and converts the resulting DRB node
+   tree into a `StructureNode`.
+
+The important point is that downstream application code does not need to know whether the source
+of structure information came from DRB, Kaitai, or DFDL. All three are normalized to the same tree
+shape before semantic interpretation is applied.
+
 ## Contributing
 
 Contributions are welcome. Please keep changes focused, add tests for behavior changes,
