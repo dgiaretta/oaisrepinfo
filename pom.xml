@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>info.oais.infomodel</groupId>
+  <artifactId>oais-structure-adapters</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>OAIS Structure RepInfo Adapters</name>
+  <description>
+    Bridges the oaisCore StructureRepInfo / RepresentationInformation interfaces
+    (the oaiscore module, vendored in from the separate
+    https://github.com/dgiaretta/OAISIFBBCandidiate repository - see that
+    module's own pom.xml for why) onto concrete binary-parsing engines: DRB,
+    Kaitai Struct and Apache Daffodil (DFDL).
+  </description>
+
+  <modules>
+    <module>oaiscore</module>
+    <module>oais-structure-api</module>
+    <module>oais-structure-dfdl</module>
+    <module>oais-structure-kaitai</module>
+    <module>oais-structure-drb</module>
+    <module>oais-structure-demo</module>
+  </modules>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <java.version>17</java.version>
+    <maven.compiler.source>${java.version}</maven.compiler.source>
+    <maven.compiler.target>${java.version}</maven.compiler.target>
+
+    <junit.version>5.10.2</junit.version>
+    <slf4j.version>1.7.36</slf4j.version>
+    <daffodil.version>3.11.0</daffodil.version>
+    <daffodil.scala.suffix>_2.13</daffodil.scala.suffix>
+    <kaitai.runtime.version>0.11</kaitai.runtime.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>info.oais.infomodel</groupId>
+        <artifactId>oaiscore</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>info.oais.infomodel</groupId>
+        <artifactId>oais-structure-api</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>info.oais.infomodel</groupId>
+        <artifactId>oais-structure-dfdl</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>info.oais.infomodel</groupId>
+        <artifactId>oais-structure-kaitai</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>info.oais.infomodel</groupId>
+        <artifactId>oais-structure-drb</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.daffodil</groupId>
+        <artifactId>daffodil-japi${daffodil.scala.suffix}</artifactId>
+        <version>${daffodil.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.kaitai</groupId>
+        <artifactId>kaitai-struct-runtime</artifactId>
+        <version>${kaitai.runtime.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-simple</artifactId>
+        <version>${slf4j.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.junit</groupId>
+        <artifactId>junit-bom</artifactId>
+        <version>${junit.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.13.0</version>
+          <configuration>
+            <release>${java.version}</release>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.2.5</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+</project>

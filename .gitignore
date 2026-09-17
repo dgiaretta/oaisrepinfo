@@ -1,0 +1,33 @@
+# Maven
+/target/
+**/target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# VS Code
+.vscode/
+
+# Java
+*.class
+*.log
+hs_err_pid*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Generated sources / local build artifacts
+**/generated-sources/
+**/generated-test-sources/
+
+# Keep local environment-specific files out
+*.local
+*.env
