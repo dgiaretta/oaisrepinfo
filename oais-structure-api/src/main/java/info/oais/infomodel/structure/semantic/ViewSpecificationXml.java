@@ -22,6 +22,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import info.oais.infomodel.structure.StructureNode;
+import info.oais.infomodel.structure.StructureNodeKind;
 
 /**
  * Shared XML-reading mechanics for this package's external view
@@ -125,11 +126,22 @@ final class ViewSpecificationXml {
 	}
 
 	/**
-	 * The {@code select="self"} / {@code select="children" name="..."}
-	 * convention shared by {@code <rows>}, {@code <pixels>} and
-	 * {@code <coordinates>} across this package's view specification file
-	 * formats - see {@link TableViewSpecificationReader}'s Javadoc for the
-	 * canonical description, with an example.
+	 * The {@code select="self"} / {@code select="children" name="..."} /
+	 * {@code select="array" name="..."} convention shared by {@code <rows>},
+	 * {@code <pixels>} and {@code <coordinates>} across this package's view
+	 * specification file formats - see {@link TableViewSpecificationReader}'s
+	 * Javadoc for the canonical description, with an example.
+	 *
+	 * <p>{@code "children"} and {@code "array"} both select a repeated
+	 * element, but they match {@link StructureNodeKind}'s two different ways
+	 * an engine can represent one (see that enum's Javadoc): {@code "children"}
+	 * expects the DFDL/DRB convention - the repeated element's own name,
+	 * naming several same-named {@link StructureNodeKind#COMPOSITE} siblings
+	 * directly under the row selector's starting node; {@code "array"}
+	 * expects the Kaitai Struct convention - a single named
+	 * {@link StructureNodeKind#ARRAY} child (its {@code repeat:} field's own
+	 * name, not the repeated element type's name, since array elements are
+	 * indexed rather than named) whose own children are the rows.</p>
 	 */
 	static Function<StructureNode, List<StructureNode>> rowSelectorFor(Element element, URI location) {
 		String select = requiredAttribute(element, "select", location);
@@ -140,9 +152,23 @@ final class ViewSpecificationXml {
 			String name = requiredAttribute(element, "name", location);
 			return root -> root.childrenNamed(name);
 		}
+		if (select.equals("array")) {
+			String name = requiredAttribute(element, "name", location);
+			return root -> {
+				StructureNode container = root.child(name)
+						.orElseThrow(() -> new ViewSpecificationException("<" + element.getTagName()
+								+ " select=\"array\" name=\"" + name + "\"> found no child named \"" + name + "\" in "
+								+ location));
+				if (container.getKind() != StructureNodeKind.ARRAY) {
+					throw new ViewSpecificationException("<" + element.getTagName() + " select=\"array\" name=\"" + name
+							+ "\">'s \"" + name + "\" child is " + container.getKind() + ", not ARRAY, in " + location);
+				}
+				return container.getChildren();
+			};
+		}
 		throw new ViewSpecificationException(
-				"<" + element.getTagName() + " select=\"" + select + "\"> is not recognised (expected \"self\" or "
-						+ "\"children\") in " + location);
+				"<" + element.getTagName() + " select=\"" + select + "\"> is not recognised (expected \"self\", "
+						+ "\"children\" or \"array\") in " + location);
 	}
 
 	/**

@@ -42,6 +42,15 @@ import info.oais.infomodel.structure.StructureNode;
  * <rows select="children" name="point"/>
  * }</pre>
  *
+ * <p>For a tree that represents repetition as a single {@code ARRAY} node
+ * instead (the Kaitai Struct convention - a {@code repeat:} field), use
+ * {@code select="array"} with a {@code name} attribute naming that field;
+ * its indexed elements become the rows:
+ *
+ * <pre>{@code
+ * <rows select="array" name="points"/>
+ * }</pre>
+ *
  * <p>Each {@code <column>} declares:
  * <ul>
  * <li>{@code name} (required) - the column's name, and, unless {@code child}

@@ -43,6 +43,7 @@ import info.oais.infomodel.structure.StructureNodeKind;
 import info.oais.infomodel.structure.StructureNodePrinter;
 import info.oais.infomodel.structure.dfdl.DfdlFormatSpecification;
 import info.oais.infomodel.structure.kaitai.KaitaiFormatSpecification;
+import info.oais.infomodel.structure.kaitai.generated.CsvPoints;
 import info.oais.infomodel.structure.kaitai.generated.Point2d;
 import info.oais.infomodel.structure.semantic.ImageSemanticRepInfo;
 import info.oais.infomodel.structure.semantic.ImageViewSpecification;
@@ -70,7 +71,15 @@ import info.oais.infomodel.structure.semantic.XyScatterPanel;
  * {@link #buildVectorTree()} and {@link #buildImageTree()} below - over
  * small, hand-built {@link StructureNode} trees rather than anything decoded
  * from the "point" bytes, to keep this addition independent of the binary
- * format work above it. Also shows two different data files (
+ * format work above it. Also shows {@code points.csv} - a variable number of
+ * repeated records, unlike the single fixed-width "point" record above -
+ * decoded via both Kaitai Struct ({@code csv_points.ksy}, surfacing
+ * repetition as a single ARRAY node) and DFDL ({@code csv-points.dfdl.xsd},
+ * surfacing it as repeated same-named siblings instead), each viewed as an
+ * {@code OaisIfTable} via its own {@link TableViewSpecification} - see
+ * {@code points-table-view-kaitai.xml} / {@code points-table-view.xml} and
+ * {@link info.oais.infomodel.structure.StructureNodeKind}'s Javadoc on ARRAY
+ * vs. repeated COMPOSITE siblings. Also shows two different data files (
  * {@code point.bin} and {@code point-alt.bin}) - each with its own RepInfo
  * applying the same {@link TableSemanticRepInfo}, producing two
  * {@code OaisIfTable}s - combined with {@link TableCombiner} and plotted
@@ -103,6 +112,26 @@ public final class DemoMain {
 	 */
 	private static final TableSemanticRepInfo POINT_AS_TABLE = new TableSemanticRepInfo(
 			new TableViewSpecification(resource("/point-table-view.xml")));
+
+	/**
+	 * Views a decoded {@code points.csv} as an {@link OaisIfTable} when the
+	 * tree came from the DFDL or DRB adapter, both of which surface a
+	 * repeated element as several same-named {@code row} siblings - see
+	 * {@code points-table-view.xml} and
+	 * {@link info.oais.infomodel.structure.StructureNodeKind}'s Javadoc on
+	 * ARRAY vs. repeated COMPOSITE siblings.
+	 */
+	private static final TableSemanticRepInfo CSV_AS_TABLE = new TableSemanticRepInfo(
+			new TableViewSpecification(resource("/points-table-view.xml")));
+
+	/**
+	 * Views a decoded {@code points.csv} as an {@link OaisIfTable} when the
+	 * tree came from the Kaitai Struct adapter, which surfaces
+	 * {@code csv_points.ksy}'s {@code repeat: eos} as a single ARRAY node
+	 * instead - see {@code points-table-view-kaitai.xml}.
+	 */
+	private static final TableSemanticRepInfo CSV_AS_TABLE_KAITAI = new TableSemanticRepInfo(
+			new TableViewSpecification(resource("/points-table-view-kaitai.xml")));
 
 	/**
 	 * Views {@link #buildTimeSeriesTree()} as an {@link OaisIfTimeSeries},
@@ -153,7 +182,20 @@ public final class DemoMain {
 		printAsTable("Kaitai Struct", kaitaiTable);
 		printAsTable("DFDL (Apache Daffodil)", dfdlTable);
 
-		showAsJTables(kaitaiTable, dfdlTable);
+		showAsJTables("point-table-view.xml applied to both engines' output", kaitaiTable, dfdlTable);
+
+		System.out.println("=== CSV: a variable number of repeated records, decoded via Kaitai Struct "
+				+ "(csv_points.ksy) and DFDL (csv-points.dfdl.xsd) ===");
+		byte[] csvBytes = readResourceBytes("/points.csv");
+		StructureNode csvKaitaiTree = decodeAndPrint(csvBytes, new KaitaiFormatSpecification(CsvPoints.class));
+		StructureNode csvDfdlTree = decodeAndPrint(csvBytes, new DfdlFormatSpecification(
+				DemoMain.class.getResource("/csv-points.dfdl.xsd").toURI()));
+		OaisIfTable csvKaitaiTable = CSV_AS_TABLE_KAITAI.apply(csvKaitaiTree);
+		OaisIfTable csvDfdlTable = CSV_AS_TABLE.apply(csvDfdlTree);
+		printAsTable("points.csv via Kaitai Struct", csvKaitaiTable);
+		printAsTable("points.csv via DFDL", csvDfdlTable);
+
+		showAsJTables("points.csv applied to both engines' output", csvKaitaiTable, csvDfdlTable);
 
 		System.out.println("=== Combining two different data files (point.bin and point-alt.bin), "
 				+ "both viewed through the same TableSemanticRepInfo ===");
@@ -187,9 +229,9 @@ public final class DemoMain {
 	 * (Swing's event dispatch thread is non-daemon) until the window is
 	 * closed.
 	 */
-	private static void showAsJTables(OaisIfTable kaitaiTable, OaisIfTable dfdlTable) {
+	private static void showAsJTables(String title, OaisIfTable kaitaiTable, OaisIfTable dfdlTable) {
 		SwingUtilities.invokeLater(() -> {
-			JFrame frame = new JFrame("point-table-view.xml applied to both engines' output");
+			JFrame frame = new JFrame(title);
 			frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 			frame.setLayout(new GridLayout(2, 1, 0, 8));
 			frame.add(labeledTable("Kaitai Struct", kaitaiTable));

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import info.oais.infomodel.interfaces.utility.OaisIfTable;
 import info.oais.infomodel.structure.DefaultStructureNode;
+import info.oais.infomodel.structure.StructureInterpretationException;
 import info.oais.infomodel.structure.StructureNode;
 import info.oais.infomodel.structure.StructureNodeKind;
 
@@ -58,6 +59,44 @@ class TableViewSpecificationReaderTest {
 		assertEquals(2, table.getValueAt(0, 1));
 		assertEquals(3, table.getValueAt(1, 0));
 		assertEquals(4, table.getValueAt(1, 1));
+	}
+
+	@Test
+	void arrayRowReadsOneRowPerArrayElement() {
+		// The Kaitai Struct convention (StructureNodeKind.ARRAY) rather than
+		// childrenRowReadsOneRowPerSameNamedSibling's DFDL/DRB convention: one
+		// named field holding the repeated elements, indexed rather than named.
+		StructureNode root = DefaultStructureNode.builder("csv", StructureNodeKind.COMPOSITE)
+				.addChild(DefaultStructureNode.builder("points", StructureNodeKind.ARRAY)
+						.addChild(pointNamed(1, 2))
+						.addChild(pointNamed(3, 4))
+						.build())
+				.build();
+
+		OaisIfTable table = new TableSemanticRepInfo(specification("array-row.xml")).apply(root);
+
+		assertEquals(2, table.getRowCount());
+		assertEquals(1, table.getValueAt(0, 0));
+		assertEquals(2, table.getValueAt(0, 1));
+		assertEquals(3, table.getValueAt(1, 0));
+		assertEquals(4, table.getValueAt(1, 1));
+	}
+
+	@Test
+	void arraySelectFailsWithAClearMessageWhenTheNamedChildIsNotAnArray() {
+		StructureNode root = DefaultStructureNode.builder("csv", StructureNodeKind.COMPOSITE)
+				.addChild(DefaultStructureNode.builder("points", StructureNodeKind.COMPOSITE)
+						.addChild(DefaultStructureNode.leaf("x", 1))
+						.build())
+				.build();
+
+		// AbstractExecutableSemanticRepInfo#apply wraps this in a
+		// StructureInterpretationException; the ViewSpecificationException with
+		// the clear message is its cause.
+		StructureInterpretationException e = assertThrows(StructureInterpretationException.class,
+				() -> new TableSemanticRepInfo(specification("array-row.xml")).apply(root));
+		assertTrue(e.getCause().getMessage().contains("ARRAY"),
+				() -> "message should mention ARRAY: " + e.getCause().getMessage());
 	}
 
 	@Test

@@ -178,6 +178,37 @@ The important point is that downstream application code does not need to know wh
 of structure information came from DRB, Kaitai, or DFDL. All three are normalized to the same tree
 shape before semantic interpretation is applied.
 
+## CSV data descriptions
+
+Each adapter also has a "data description" for CSV - a variable number of repeated `x,y,label`
+records, unlike the point format's single fixed-width record - proving each engine's `repeat`/array
+idiom, not just its single-record case, normalizes to the common `StructureNode` tree:
+
+- **Kaitai**: [oais-structure-kaitai/src/main/ksy/csv_points.ksy](oais-structure-kaitai/src/main/ksy/csv_points.ksy)
+  describes CSV with `repeat: eos` (keep reading rows until end of stream). Kaitai Struct's Java
+  target turns a `repeat:` field into a `List`, which the adapter reports as a single
+  `StructureNodeKind.ARRAY` node holding the rows, indexed rather than named.
+- **DFDL**: [oais-structure-demo/src/main/resources/csv-points.dfdl.xsd](oais-structure-demo/src/main/resources/csv-points.dfdl.xsd)
+  describes CSV with `maxOccurs="unbounded"` and infix `dfdl:separator`s (`%NL;` between rows, `,`
+  between columns - an infix separator rather than a terminator, so a real CSV file's optional
+  trailing newline does not produce a spurious empty extra row). DFDL's DOM-based infoset instead
+  surfaces the repeated rows as several same-named `row` siblings under one root.
+- **DRB**: DRB does not use an external schema file the way DFDL and Kaitai do - a real DRB CSV
+  driver auto-detects the format from content/extension and exposes rows as child nodes directly,
+  the same way its resolver does for any other format (see "DRB example description" above). Since
+  no real DRB jar is available in this project's build environment, this is exercised against the
+  same kind of fake factory resolver `DrbStructureRepInfoTest` already uses - see
+  `oais-structure-drb`'s `FakeCsvDrbFactoryResolver` and `CsvPointsDrbStructureRepInfoTest` - modelled
+  to surface repetition the same way DFDL does: same-named `row` siblings, not an array.
+
+Because DFDL and DRB both surface repetition as same-named siblings while Kaitai Struct surfaces it
+as a single indexed array (see `StructureNodeKind`'s Javadoc on ARRAY vs. repeated COMPOSITE
+siblings), reading a CSV-shaped tree as an `OaisIfTable` needs a row selector that knows which shape
+it is looking at. `TableViewSpecificationReader`'s `<rows select="...">` convention (see
+`oais-structure-demo`'s `points-table-view.xml` for the `children`/DFDL+DRB case and
+`points-table-view-kaitai.xml` for the `array`/Kaitai case) already had `self` and `children`; `array`
+was added alongside this CSV example specifically to cover the Kaitai case.
+
 ## Combining two data files
 
 The demo also shows getting two different data files - `point.bin` and `point-alt.bin` - each
