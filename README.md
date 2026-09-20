@@ -25,6 +25,58 @@ structure descriptor be executed against a digital object and return a normalize
 The adapters convert engine-native results into a common structure model so higher-level
 code can work with a single abstraction regardless of the underlying parser.
 
+## Digital preservation potential
+
+From an OAIS and digital preservation point of view, DFDL, Kaitai Struct and DRB descriptions are
+themselves a form of `RepresentationInformation`: they are what lets a future Designated Community
+extract meaning from a bag of bytes whose original software may be long gone. This project's own test
+fixtures deliberately keep all three engines in lockstep on the same couple of toy shapes (a
+fixed-width binary "point" record, a delimited text table) so results are directly comparable while
+the adapters themselves are being developed - that says nothing about the ceiling on what each
+language can actually describe.
+
+Here's what these three languages are actually used for, in real-world practice, beyond this
+project's toy fixtures. This is an initial list, not exhaustive, and the hope is that it grows as more
+formats get real DFDL/Kaitai/DRB descriptions written for them:
+
+- **DFDL** (OGF standard; implemented by Apache Daffodil, IBM and others) - built for text/binary
+  *record* formats that predate XML/JSON:
+  - Financial messaging: SWIFT MT, ISO 20022, FIX
+  - Legacy mainframe: COBOL copybook-described fixed-width/EBCDIC files
+  - Healthcare: HL7 v2 (pipe-delimited)
+  - Defense/government: military message formats (USMTF, VMF), EDI (X12)
+  - Scientific/telemetry: NASA/JPL has used DFDL for spacecraft instrument telemetry - one of the use
+    cases that shaped the standard
+
+- **Kaitai Struct** - built for reverse-engineering arbitrary binary formats; its public format
+  gallery has hundreds of real specs:
+  - Media containers: MP4, AVI, WAV, MIDI
+  - Executable/binary formats: ELF, PE/EXE, Mach-O, Java `.class`
+  - Filesystem/forensics: NTFS, ext2, Windows registry hives, prefetch files, event logs - popular in
+    malware analysis and CTF challenges
+  - Archive/compression formats, game asset formats, network protocol/packet formats (PCAP)
+
+- **DRB** (GAEL Systems, developed for ESA) - a federated "virtual filesystem" over heterogeneous
+  Earth Observation data products, used in Sentinel ground-segment tooling:
+  - Satellite product containers combining multiple files (SAFE format)
+  - netCDF, HDF5, JPEG2000 satellite imagery, DIMAP, GeoTIFF
+  - XML metadata and archive containers (ZIP/TAR) wrapping the above
+
+Not every format is a good fit for this project's approach, though - these languages describe
+*structured, record-oriented* data (text/binary grammars), not free-form compound documents. A
+`.docx` file, for instance, is a ZIP of XML parts; Kaitai could parse the ZIP's central directory, but
+there's no sensible row/column or spectrum projection of a document's actual content, so it wouldn't
+gain anything from `oais-structure-topcat`/`oais-structure-splat`'s view-as-a-table approach the way a
+telemetry record or an EO product's binary payload would.
+
+The value of being able to look at described data with tools such as TOPCAT and SPLAT is that a large
+proportion of information, once you look past its original container format, logically boils down to
+tabular or vector (spectrum/time-series) form - which is exactly what those two viewers are built to
+show. A significant proportion of the rest is image data, which neither TOPCAT nor SPLAT is the right
+tool for; identifying existing software that can display and work with image data the same way (a
+`StructureNode` → image bridge, analogous to the table/spectrum bridges this project already has) is a
+natural next direction, not yet started.
+
 ## Module layout
 
 ```text
