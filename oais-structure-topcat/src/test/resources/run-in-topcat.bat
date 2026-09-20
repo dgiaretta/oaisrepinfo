@@ -32,11 +32,16 @@ set "DATA_FILE=%~1"
 if "%DATA_FILE%"=="" set "DATA_FILE=%HERE%point.bin"
 
 REM This machine's default `java` on PATH resolves to an old Java 8, which
-REM cannot load this module's classes (UnsupportedClassVersionError) -- set
-REM JAVA17_HOME once to point at a real 17+ JDK, or edit JAVA_EXE directly
-REM below if your own machine's default `java` is already 17+.
+REM cannot load this module's classes (UnsupportedClassVersionError). Prefer
+REM JAVA17_HOME if set (portable across machines), else fall back to the
+REM known-good JDK 21 install already used throughout this project's own
+REM setup on this machine, else give up and use plain `java` (which will
+REM fail loudly with the same UnsupportedClassVersionError if it's too old).
+set "KNOWN_GOOD_JDK=C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot"
 if defined JAVA17_HOME (
     set "JAVA_EXE=%JAVA17_HOME%\bin\java.exe"
+) else if exist "%KNOWN_GOOD_JDK%\bin\java.exe" (
+    set "JAVA_EXE=%KNOWN_GOOD_JDK%\bin\java.exe"
 ) else (
     set "JAVA_EXE=java"
 )
