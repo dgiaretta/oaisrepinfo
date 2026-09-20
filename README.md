@@ -37,7 +37,8 @@ root/
 ├─ oais-structure-dfdl/
 ├─ oais-structure-kaitai/
 ├─ oais-structure-drb/
-└─ oais-structure-demo/
+├─ oais-structure-demo/
+└─ oais-structure-topcat/
 ```
 
 ## Architecture at a glance
@@ -53,6 +54,8 @@ flowchart LR
     E --> G
     F --> G
     G --> H[Higher-level processing / demo]
+    G --> K[oais-structure-topcat TableBuilder]
+    K --> L[TOPCAT / STIL]
 
     C --> I[ExecutableStructureRepInfo]
     I --> J[Format-specific parser execution]
@@ -86,6 +89,12 @@ parsing outputs into a single `StructureNode` representation that can be consume
 - `oais-structure-demo`  
   Demonstrates how the adapters plug into the OAIS model and produce executable structure information
   for a concrete example format.
+
+- `oais-structure-topcat`  
+  A `uk.ac.starlink.table.TableBuilder` plugin for [TOPCAT](https://github.com/Starlink/starjava/tree/master/topcat),
+  Starlink's astronomy table viewer, so it can open data described by a DFDL schema, a Kaitai Struct
+  generated class, or a DRB descriptor directly, via `StructureInterpreterFactory` and
+  `TableSemanticRepInfo` — no new parsing logic of its own. See "TOPCAT example description" below.
 
 ## Quick start
 
@@ -177,6 +186,66 @@ A typical DRB-backed example is:
 The important point is that downstream application code does not need to know whether the source
 of structure information came from DRB, Kaitai, or DFDL. All three are normalized to the same tree
 shape before semantic interpretation is applied.
+
+## TOPCAT example description
+
+`oais-structure-topcat` lets [TOPCAT](https://github.com/Starlink/starjava/tree/master/topcat),
+Starlink's astronomy table viewer, open a data file described by any of the three engines above,
+by implementing STIL's `uk.ac.starlink.table.TableBuilder` on top of the same
+`StructureInterpreterFactory` → `StructureNode` → `TableSemanticRepInfo` pipeline the demo uses -
+no new parsing logic, and no fork of `starjava` itself. STIL is a real published Maven Central
+artifact (`uk.ac.starlink:stil`), not something requiring a source build.
+
+Because a DFDL/Kaitai/DRB description is inherently external to the raw data bytes (unlike a
+self-describing format such as FITS or VOTable), `OaisStructureTableBuilder` needs a convention
+for finding it. For a data file `some/dir/foo.ext`, it looks for these siblings (`foo` being the
+data file's name with its own last extension stripped) - the same `point.bin` + `point.dfdl.xsd` +
+`point-table-view.xml` naming this project's own demo fixtures already use, not a new convention
+invented for this module:
+
+| Sidecar | Purpose |
+|---|---|
+| `foo.dfdl.xsd` | A DFDL schema, used via `DfdlFormatSpecification`. |
+| `foo.ksy.classname` | A one-line text file naming an already-compiled, already-on-classpath Kaitai Struct generated class (see `KaitaiFormatSpecification`'s own Javadoc for why a runtime `.ksy` path alone is not enough). |
+| `foo.drb.properties` | Optional `factoryResolverClassName`/`protocolHint` properties for `DrbFormatSpecification`'s 3-argument constructor. |
+| `foo.drb` | Present (even empty) opts a file into DRB's own auto-detecting no-argument `DrbFormatSpecification()` instead. |
+| `foo-table-view.xml` | Required alongside any of the above - the `TableViewSpecification` describing how to view the resulting `StructureNode` tree as rows and columns. |
+
+Requiring an explicit sidecar for every engine, including DRB (whose underlying library can
+auto-detect a format with no hint at all), keeps `looksLikeFile()` predictable: this builder only
+ever claims a file it has direct sidecar evidence for.
+
+**Registering with TOPCAT** needs no source changes to `starjava`: `StarTableFactory` loads extra
+`TableBuilder`s by classname from a system property
+(`StarTableFactory.KNOWN_BUILDERS_PROPERTY`, `startable.readers`). This module pulls in Daffodil's
+whole Scala stack plus every adapter's runtime, so rather than listing each jar on the classpath by
+hand, collect them into one folder with `maven-dependency-plugin` and let Java's classpath wildcard
+(`dir/*`, expanded by the JVM itself, not the shell) pick them all up:
+
+```bash
+mvn -pl oais-structure-topcat dependency:copy-dependencies -DincludeScope=runtime
+mvn -pl oais-structure-topcat package
+```
+
+then launch TOPCAT with the module's own jar plus that dependency folder added to the classpath
+(quote the wildcard so your shell doesn't try to expand it itself):
+
+```bash
+java -Dstartable.readers=info.oais.infomodel.structure.topcat.OaisStructureTableBuilder \
+     -cp "topcat-full.jar:oais-structure-topcat/target/oais-structure-topcat-0.0.1-SNAPSHOT.jar:oais-structure-topcat/target/dependency/*" \
+     uk.ac.starlink.topcat.Driver point.bin
+```
+
+(Windows: use `;` instead of `:` between classpath entries, and give `topcat-full.jar` its full
+path if it isn't in the current directory.) This also needs a Java 17+ runtime to run TOPCAT itself
+under -- check `java -version` resolves one; a system `java` pinned to something older (Java 8, say)
+will fail to load this module's classes with an `UnsupportedClassVersionError` even though the build
+itself succeeded.
+
+`OaisStructureTableBuilderTest` (in `oais-structure-topcat/src/test`) verifies this same path end to
+end automatically -- real bytes, through the real DFDL and Kaitai adapters, into a real STIL
+`StarTable` -- without needing a TOPCAT install; the manual launch above (confirmed working) is only
+needed to see it inside TOPCAT itself.
 
 ## CSV data descriptions
 
