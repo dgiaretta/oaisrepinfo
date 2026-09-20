@@ -38,7 +38,8 @@ root/
 ├─ oais-structure-kaitai/
 ├─ oais-structure-drb/
 ├─ oais-structure-demo/
-└─ oais-structure-topcat/
+├─ oais-structure-topcat/
+└─ oais-structure-splat/
 ```
 
 ## Architecture at a glance
@@ -56,6 +57,8 @@ flowchart LR
     G --> H[Higher-level processing / demo]
     G --> K[oais-structure-topcat TableBuilder]
     K --> L[TOPCAT / STIL]
+    K --> M[oais-structure-splat launcher]
+    M --> N[SPLAT SpecData]
 
     C --> I[ExecutableStructureRepInfo]
     I --> J[Format-specific parser execution]
@@ -95,6 +98,12 @@ parsing outputs into a single `StructureNode` representation that can be consume
   Starlink's astronomy table viewer, so it can open data described by a DFDL schema, a Kaitai Struct
   generated class, or a DRB descriptor directly, via `StructureInterpreterFactory` and
   `TableSemanticRepInfo` — no new parsing logic of its own. See "TOPCAT example description" below.
+
+- `oais-structure-splat`  
+  Opens the same DFDL/Kaitai/DRB-described data as a spectrum in [SPLAT](http://www.starlink.ac.uk/splat/),
+  Starlink's spectral analysis tool, by reusing `oais-structure-topcat`'s `OaisStructureTableBuilder`
+  to build a `StarTable`, then wrapping it as a `SpecData` and handing it to a live `SplatBrowser`. See
+  "SPLAT example description" below.
 
 ## Quick start
 
@@ -246,6 +255,101 @@ itself succeeded.
 end automatically -- real bytes, through the real DFDL and Kaitai adapters, into a real STIL
 `StarTable` -- without needing a TOPCAT install; the manual launch above (confirmed working) is only
 needed to see it inside TOPCAT itself.
+
+## SPLAT example description
+
+`oais-structure-splat` opens the same DFDL/Kaitai/DRB-described data as a spectrum in
+[SPLAT](http://www.starlink.ac.uk/splat/), Starlink's spectral analysis tool. Unlike TOPCAT, SPLAT
+has no plugin-registration hook equivalent to STIL's `startable.readers` system property -- its own
+format dispatch is a hard-coded switch over known formats, so it can't be told about an arbitrary new
+`TableBuilder` at the command line. Instead `OaisStructureSpectrumLauncher` builds the `StarTable`
+itself, reusing `OaisStructureTableBuilder.makeStarTable` directly (the exact same engine dispatch
+TOPCAT uses), wraps it as a `SpecData` via `SpecDataFactory.get(StarTable, String, String)`, and adds
+it to a running `SplatBrowser` via `SplatBrowser.addSpectrum(SpecData)` -- confirmed against
+`SplatBrowser`'s own source as the supported way to hand it a programmatically-built spectrum.
+
+**Building splat.jar.** Unlike `stil`, `splat` is not published on Maven Central, so it has to be
+built from the `starjava` source tree and installed into the local Maven repo:
+
+```bash
+sj=~/starjava   # or wherever
+mkdir -p "$sj" && cd "$sj"
+git clone https://github.com/Starlink/starjava.git source
+```
+
+SPLAT also needs Java Advanced Imaging (JAI), a Sun/Oracle library discontinued long before the JDK
+versions this project targets, which `ant build`'s own `check_jai` step only detects via
+`javax.media.jai.JAI` being present on *Ant's own* classpath -- with it absent (the normal case on a
+modern JDK), `jsky`/`jaiutil`/`sog`/`splat` are silently skipped rather than built. Obtain
+`jai_core`/`jai_codec` (republished on the OSGeo Nexus repo, since Oracle's original installers target
+Java 5/6) and wire them in:
+
+```bash
+curl -sL -o jai_core.jar  "https://repo.osgeo.org/repository/release/javax/media/jai_core/1.1.3/jai_core-1.1.3.jar"
+curl -sL -o jai_codec.jar "https://repo.osgeo.org/repository/release/javax/media/jai_codec/1.1.3/jai_codec-1.1.3.jar"
+cp jai_core.jar jai_codec.jar "$sj/source/ant/lib/"                 # for Ant's own jai.present check
+for m in jsky jaiutil sog splat; do
+  mkdir -p "$sj/source/$m/src/lib"                                  # ${src.jars.dir}, NOT <module>/lib
+  cp jai_core.jar jai_codec.jar "$sj/source/$m/src/lib/"
+done
+```
+
+`jaiutil` and `sog`'s own `build.xml` ship with their `package.jars` fileset commented out (they
+historically relied on JAI being installed as a JDK extension, a mechanism removed in Java 9+) --
+uncomment it in both files so they pick up the jars just copied into their own `src/lib`.
+
+Then build, in dependency order (siblings `array`/`diva`/`hdx`/... first, via the top-level
+`ant build install`; only `jsky`/`jaiutil`/`sog`/`splat` need JAI):
+
+```bash
+export STAR_JAVA=/path/to/jdk-17-or-later/bin/java
+cd "$sj/source" && ./ant/bin/ant build install         # everything except the four JAI-gated packages
+for m in jsky jaiutil sog splat; do
+  (cd "$m" && ../ant/bin/ant install)
+done
+```
+
+splat.jar's own compiled code additionally needs `javax.xml.bind` (JAXB) and `javax.activation`, both
+removed from the JDK itself since Java 11 (used by SPLAT's VAMDC atomic/molecular database support) --
+drop `jakarta.xml.bind-api`, `jaxb-runtime` and `javax.activation` jars (all on Maven Central) into
+`splat/src/lib` alongside the JAI jars before building `splat` itself.
+
+**Installing into the local Maven repo.** `splat.jar` is not a self-contained "full" jar the way
+`topcat-full.jar` is -- its own `MANIFEST.MF` `Class-Path` names 30-odd sibling jars (`astgui.jar`,
+`table.jar`, `jsky.jar`, the VAMDC `contrib/` jars, ...), none of them published anywhere either.
+`oais-structure-splat/scripts/install-splat-deps.sh` installs `splat.jar` and that entire closure
+(plus `jhall.jar`, a transitive dependency of `help.jar` that manifest doesn't list) into the local
+repo under the synthetic groupId `info.oais.infomodel.starjava.local`, version `0.0.1-local` -- run it
+once (`STARJAVA_LIB=/path/to/starjava/lib ./install-splat-deps.sh`) after the build above succeeds.
+`oais-structure-splat/pom.xml` then declares every one of those as an ordinary flat dependency (not
+via this project's shared `dependencyManagement`, since they're specific to this one module).
+
+**The native `jniast` library** (SPLAT's AST/WCS support, loaded as soon as any `SpecData` is built)
+has no Maven Central presence and, unlike `splat.jar` itself, is never copied into the "installed"
+`starjava/lib` tree by `ant install` either -- it only exists as a precompiled binary under the source
+checkout's own `jniast/lib/<arch>` (e.g. `jniast/lib/amd64/jniast.dll` on 64-bit Windows). Point
+`-Djava.library.path` (or this module's `jniast.native.dir` Maven property, read by its surefire
+config) at that directory; without it, spectrum construction fails with
+`UnsatisfiedLinkError: couldn't load library jniast`.
+
+**Running it.** `OaisStructureSpectrumLauncherTest` (in `oais-structure-splat/src/test`) verifies the
+DFDL-to-`SpecData` path end to end automatically, without opening a GUI window -- using its own
+`spectrum.csv` fixture (ten wavelength/flux rows) rather than the `point.bin` fixture the other
+modules share, since SPLAT's `TableSpecDataImpl` requires every table column to be numeric (a spectrum
+is X/Y data, not an arbitrary table) and `point.bin`'s `label` string column would violate that. To
+see it inside a live SPLAT window:
+
+```bash
+mvn -pl oais-structure-splat dependency:copy-dependencies -DincludeScope=runtime
+mvn -pl oais-structure-splat package
+oais-structure-splat/src/test/resources/run-in-splat.bat
+```
+
+(confirmed working: a real SPLAT window opens with the ten-row spectrum loaded via
+`SplatBrowser.addSpectrum`. One upstream SPLAT bug surfaces as a harmless `SEVERE`-logged
+`NullPointerException` on `plotSampSpectraToSameWindowItem` during startup when constructed with no
+SAMP communicator, as `OaisStructureSpectrumLauncher` does -- caught internally, does not stop
+startup, and is not something to fix here since it's third-party code.)
 
 ## CSV data descriptions
 

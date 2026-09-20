@@ -25,6 +25,7 @@
     <module>oais-structure-drb</module>
     <module>oais-structure-demo</module>
     <module>oais-structure-topcat</module>
+    <module>oais-structure-splat</module>
   </modules>
 
   <properties>
@@ -75,6 +76,11 @@
       <dependency>
         <groupId>info.oais.infomodel</groupId>
         <artifactId>oais-structure-topcat</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>info.oais.infomodel</groupId>
+        <artifactId>oais-structure-splat</artifactId>
         <version>${project.version}</version>
       </dependency>
 
