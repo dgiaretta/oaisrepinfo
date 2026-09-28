@@ -1,5 +1,9 @@
 # OAIS Structure Adapters
 
+> **This repository has moved and is archived (read-only).** Its code now lives in
+> [dgiaretta/archivemanager](https://github.com/dgiaretta/archivemanager), alongside the
+> archive-manager application, where development continues - please make changes there, not here.
+
 This project provides a small Java framework for attaching OAIS `StructureRepInfo`
 objects to concrete binary-format parsers without making the core OAIS model depend
 on any specific parser implementation.
